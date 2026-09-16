@@ -1,8 +1,10 @@
 """Generate the teaching character with MPFB in portable Blender (no UI needed)."""
 import bpy, sys, json, importlib
+
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+swim = '--swim' in sys.argv
 TOOLS = ROOT.parent / '.tools'
 repo = bpy.context.preferences.extensions.repos.new(name='Local MPFB build', module='character_build', custom_directory=str(TOOLS / 'mpfb2' / 'src'))
 import addon_utils
@@ -22,6 +24,10 @@ body = HumanService.create_human(macro_detail_dict=macro)
 rig = HumanService.add_builtin_rig(body, 'game_engine')
 assets = TOOLS / 'makehuman-assets'
 for sub, name, kind in [('eyes','low-poly','Eyes'),('eyebrows','eyebrow001','Eyebrows'),('hair','short01','Hair'),('clothes','male_casualsuit06','Clothes')]:
+    if swim and kind == 'Clothes':
+        path = TOOLS / 'pants03/clothes/mindfront_male_swimming_trunks_02/mindfront_male_swimming_trunks_02.mhclo'
+        HumanService.add_mhclo_asset(str(path), body, asset_type=kind, subdiv_levels=0, material_type='GAMEENGINE')
+        continue
     path = next((assets / sub).rglob(name + '.mhclo'))
     HumanService.add_mhclo_asset(str(path), body, asset_type=kind, subdiv_levels=0, material_type='GAMEENGINE')
 skin = bpy.data.materials.new('Warm skin')
@@ -59,9 +65,9 @@ bpy.ops.object.select_all(action='DESELECT')
 rig.select_set(True)
 for obj in rig.children_recursive: obj.select_set(True)
 bpy.context.view_layer.objects.active = rig
-bpy.ops.export_scene.gltf(filepath=str(out / 'child-makehuman.glb'), export_format='GLB', use_selection=True, export_animations=False, export_morph=False)
+bpy.ops.export_scene.gltf(filepath=str(out / ('child-swim.glb' if swim else 'child-makehuman.glb')), export_format='GLB', use_selection=True, export_animations=False, export_morph=False)
 metadata = {b.name: {'head':list(rig.matrix_world @ b.head_local), 'tail':list(rig.matrix_world @ b.tail_local)} for b in rig.data.bones}
-(out / 'child-rig.json').write_text(json.dumps(metadata, indent=2))
+if not swim: (out / 'child-rig.json').write_text(json.dumps(metadata, indent=2))
 print('CHARACTER_BONES', [b.name for b in rig.data.bones])
 print('BODY_DIMS', list(body.dimensions))
-bpy.ops.wm.save_as_mainfile(filepath=str(TOOLS / 'character-source.blend'))
+bpy.ops.wm.save_as_mainfile(filepath=str(TOOLS / ('character-swim-source.blend' if swim else 'character-source.blend')))

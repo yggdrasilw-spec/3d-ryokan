@@ -7,9 +7,9 @@ import {createCharacter,solveLimb} from '../app/character-rig.mjs';
 import {graspProfile,graspPose} from '../app/grasp.mjs';
 import {items} from '../app/units.mjs';
 const v=(...a)=>new T.Vector3(...a);
-async function loadRig(){
+async function loadRig(model='child-makehuman.glb'){
  // Load the actual exported mesh and skin weights in Node, omitting only browser textures.
- const b=await readFile(new URL('../app/models/child-makehuman.glb',import.meta.url));
+ const b=await readFile(new URL('../app/models/'+model,import.meta.url));
  const len=b.readUInt32LE(12),json=JSON.parse(b.subarray(20,20+len).toString());
  for(const mat of json.materials||[]) {delete mat.normalTexture;delete mat.occlusionTexture;delete mat.emissiveTexture;if(mat.pbrMetallicRoughness){delete mat.pbrMetallicRoughness.baseColorTexture;delete mat.pbrMetallicRoughness.metallicRoughnessTexture;}}
  delete json.images;delete json.textures;
@@ -64,4 +64,26 @@ test('every catalog grasp is within reach at contact, lift and presentation',asy
    for(const side of ['r','l'])assert.equal(kid.diagnostics[side].limited,false,`${id} ${side} ${p} cannot reach`);
   }
  }
+});
+
+test('individual finger joints can be adjusted without curling the other fingers',async()=>{
+ const kid=await loadRig(),base={right:v(-.19,.70,.06),left:v(.19,.70,.06)};
+ kid.pose(base);
+ const index=kid.bones.index_02_r.quaternion.clone(),middle=kid.bones.middle_02_r.quaternion.clone();
+ kid.pose({...base,fingers:{r:{index:[0,.6,0]}}});
+ assert.ok(Math.abs(index.angleTo(kid.bones.index_02_r.quaternion)-.6)<1e-6);
+ assert.ok(middle.angleTo(kid.bones.middle_02_r.quaternion)<1e-6);
+ kid.pose({...base,fingers:{r:{index:[0,.6,0]}},collider:{min:v(-2,-2,-2),max:v(2,2,2)}});
+ assert.ok(index.angleTo(kid.bones.index_02_r.quaternion)<1e-6,'collision blocks requested curl');
+});
+
+test('swimsuit has skinned fabric and follows seated bath pose',async()=>{
+ const kid=await loadRig('child-swim.glb');
+ const fabric=[];
+ kid.root.traverse(o=>{if(o.isMesh&&(Array.isArray(o.material)?o.material:[o.material]).some(m=>/swimming_trunks_02/i.test(m.name)))fabric.push(o);});
+ assert.ok(fabric.length>0);
+ assert.ok(fabric.every(o=>o.isSkinnedMesh));
+ kid.pose({right:v(-.19,.70,.06),left:v(.19,.70,.06),sit:1});
+ kid.root.traverse(o=>{if(o.isBone)assert.ok(o.matrixWorld.elements.every(Number.isFinite));});
+ assert.ok(!kid.root.getObjectByName('male_casualsuit06'));
 });
