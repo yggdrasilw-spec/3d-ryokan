@@ -1,5 +1,10 @@
 # 3d-ryokan
 
+> このリポジトリは開発履歴を保存するアーカイブです。現在の正式版・公開版は
+> [yggdrasilw-spec/sonohoka の `3d-ryokan`](https://github.com/yggdrasilw-spec/sonohoka/tree/main/3d-ryokan)
+> です。公開サイトは [https://yggdrasilw-spec.github.io/sonohoka/3d-ryokan/](https://yggdrasilw-spec.github.io/sonohoka/3d-ryokan/)
+> から開いてください。今後の修正は `sonohoka` 側だけに反映します。
+
 GitHubリポジトリ：https://github.com/yggdrasilw-spec/3d-ryokan
 
 児童が身体や身近な物との比較を通じて、長さ・重さ・液体のかさの量感を学ぶHTML教材の作業フォルダ。
