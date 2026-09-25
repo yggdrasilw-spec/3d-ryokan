@@ -3,10 +3,21 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import * as T from '../app/vendor/three.module.js';
 import {GLTFLoader} from '../app/vendor/GLTFLoader.js';
-import {createCharacter,solveLimb} from '../app/character-rig.mjs';
+import {createCharacter,solveLimb,sampleWalk} from '../app/character-rig.mjs';
 import {graspProfile,graspPose} from '../app/grasp.mjs';
 import {items} from '../app/units.mjs';
+import {bathEntryMotion,reachMotion,liftMotion,sampleMotion} from '../app/interaction-motion.mjs';
 const v=(...a)=>new T.Vector3(...a);
+test('captured walk loops continuously and stops without residual limb motion',()=>{
+ assert.ok(sampleWalk(.4,0).every(x=>x===0));
+ for(let i=0;i<6;i++)assert.ok(Math.abs(sampleWalk(.78-1e-7)[i]-sampleWalk(0)[i])<1e-5);
+ let rightLift=0,leftLift=0;
+ for(let i=0;i<100;i++){
+  const frame=sampleWalk(i*.78/100);assert.ok(frame.every(Number.isFinite));
+  assert.ok(frame[1]>=0&&frame[4]>=0);rightLift=Math.max(rightLift,frame[1]);leftLift=Math.max(leftLift,frame[4]);
+ }
+ assert.ok(rightLift>.05&&leftLift>.05);
+});
 async function loadRig(model='child-makehuman.glb'){
  // Load the actual exported mesh and skin weights in Node, omitting only browser textures.
  const b=await readFile(new URL('../app/models/'+model,import.meta.url));
@@ -86,4 +97,44 @@ test('swimsuit has skinned fabric and follows seated bath pose',async()=>{
  kid.pose({right:v(-.19,.70,.06),left:v(.19,.70,.06),sit:1});
  kid.root.traverse(o=>{if(o.isBone)assert.ok(o.matrixWorld.elements.every(Number.isFinite));});
  assert.ok(!kid.root.getObjectByName('male_casualsuit06'));
+});
+
+test('captured reach and lift retain contact reachability for every item',async()=>{
+ const kid=await loadRig();
+ for(const [id,d] of Object.entries(items)){
+  const {large}=graspProfile(d,id),contact=v(large?0:-.17,.701,.185);
+  for(let i=0;i<=20;i++){
+   const t=i/20,r=reachMotion(t),g=graspPose(d,id,contact,r.progress,0);
+   g.right.y+=r.arc;if(large)g.left.y+=r.arc;
+   kid.pose({...g,torsoLean:r.lean});
+   for(const side of ['r','l'])assert.equal(kid.diagnostics[side].limited,false,`${id} reach ${t}/${side}`);
+   const lift=liftMotion(t);kid.pose({...graspPose(d,id,contact.clone().add(v(0,lift.progress*.15,0)),1,1),torsoLean:lift.lean});
+   for(const side of ['r','l'])assert.equal(kid.diagnostics[side].limited,false,`${id} lift ${t}/${side}`);
+  }
+ }
+});
+
+test('bath sequence keeps both ankle targets reachable and clears the rim',async()=>{
+ const kid=await loadRig('child-swim.glb');let maxError=0,worst='';
+ for(let i=0;i<=260;i++){
+  const t=.26+i/260*.74,m=bathEntryMotion(t);
+  kid.root.position.copy(m.position);kid.root.rotation.y=m.yaw;kid.root.updateMatrixWorld(true);
+  const footTargets=Object.fromEntries(Object.entries(m.feet).map(([s,p])=>[s,kid.root.worldToLocal(p.clone())]));
+  const hands={right:v(-.19,.70,.06),left:v(.19,.70,.06)};
+  for(const [side,h] of Object.entries(m.hands||{})){const target=kid.root.worldToLocal(h.position.clone());target.y+=m.sit*.42;hands[side==='r'?'right':'left'].lerp(target,h.weight);}
+  kid.pose({...hands,sit:m.sit,torsoLean:m.lean,footTargets});
+  for(const side of ['r','l']){
+   const d=kid.diagnostics['leg_'+side],hip=v(...d.hip),knee=v(...d.knee),ankle=v(...d.ankle);
+   const flex=Math.PI-knee.clone().sub(hip).negate().angleTo(ankle.clone().sub(knee));
+   assert.ok(flex<=145*Math.PI/180+1e-5,`knee flex ${t}/${side}`);
+   if(m.hands?.[side]?.weight===1)assert.equal(kid.diagnostics[side].limited,false,`support hand ${t}/${side}: ${JSON.stringify(kid.diagnostics[side])}`);
+  }
+  for(const side of ['r','l']){
+   const actual=kid.bones['foot_'+side].getWorldPosition(v()),error=actual.distanceTo(m.feet[side]);
+   if(error>maxError){maxError=error;worst=`${t}/${side}: ${actual.toArray()} -> ${m.feet[side].toArray()}`;}
+   // A conservative sole envelope while crossing the side rim.
+   if(actual.x>-.68&&actual.x<-.30)assert.ok(actual.y>.68,`rim ${t}/${side} ${actual.toArray()}`);
+  }
+ }
+ assert.ok(maxError<.025,`${maxError} ${worst}`);
 });

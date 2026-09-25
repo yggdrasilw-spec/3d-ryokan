@@ -18,9 +18,22 @@ ExportService = service('exportservice', 'ExportService')
 bpy.ops.object.select_all(action='SELECT')
 bpy.ops.object.delete(use_global=False)
 macro = TargetService.get_default_macro_info_dict()
-macro.update(age=.1875, gender=1.0, muscle=.35, weight=.45)
+# MakeHuman's child anchor (.1875) is about 10 years; choose 8 years.
+macro.update(age=(8-1)/48, gender=1.0, muscle=.25, weight=.5)
 macro['race'] = dict(asian=1.0, caucasian=0.0, african=0.0)
 body = HumanService.create_human(macro_detail_dict=macro)
+# Gentle stylization: rounder cheeks, a softer chin and slightly larger eyes.
+for target, weight in [('head/head-round', .45), ('head/head-scale-horiz-incr', .30),
+                       ('head/head-scale-vert-incr', .45), ('head/head-scale-depth-incr', .18),
+                       ('expression/units/asian/mouth-corner-puller', .35),
+                       ('eyebrows/eyebrows-trans-up', .10),
+                       ('chin/chin-height-decr', .2), ('chin/chin-prominent-decr', .15),
+                       ('cheek/l-cheek-volume-incr', .18), ('cheek/r-cheek-volume-incr', .18),
+                       ('eyes/l-eye-scale-incr', .12), ('eyes/r-eye-scale-incr', .12)]:
+    path = TOOLS / 'mpfb2/src/mpfb/data/targets' / (target + '.target.gz')
+    if not path.exists():
+        raise FileNotFoundError(path)
+    TargetService.load_target(body, str(path), weight=weight)
 rig = HumanService.add_builtin_rig(body, 'game_engine')
 assets = TOOLS / 'makehuman-assets'
 for sub, name, kind in [('eyes','low-poly','Eyes'),('eyebrows','eyebrow001','Eyebrows'),('hair','short01','Hair'),('clothes','male_casualsuit06','Clothes')]:
