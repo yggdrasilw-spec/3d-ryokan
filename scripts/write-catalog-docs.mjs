@@ -1,5 +1,5 @@
 import {writeFileSync} from 'node:fs';
-import {catalog,handReference,buildQuestions} from '../app/catalog.mjs';
+import {catalog,handReference,buildQuestions} from '../catalog.mjs';
 const rows=Object.entries(catalog).map(([id,d])=>`| ${d.name} | ${[d.width,d.height,d.depth].map(x=>Number((x*1000).toFixed(2))).join(' × ')} | ${d.value} ${d.unit} | ${d.dimensionStatus} | [${d.sources[0].title}](${d.sources[0].url}) |`).join('\n');
 const text=`# 教材追加・手指改修（2026-09-11）
 

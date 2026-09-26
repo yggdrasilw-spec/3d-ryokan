@@ -1,7 +1,7 @@
 // Offline conversion. Inputs: CMU 07_01, Bruce Hahne BVH conversion, Three BVHLoader.
 import {readFileSync,writeFileSync} from 'node:fs';
-import {BVHLoader} from '../app/vendor/BVHLoader.js';
-import * as T from '../app/vendor/three.module.js';
+import {BVHLoader} from '../vendor/BVHLoader.js';
+import * as T from '../vendor/three.module.js';
 const {skeleton,clip}=new BVHLoader().parse(readFileSync(new URL('./assets/07_01.bvh',import.meta.url),'utf8'));
 const root=skeleton.bones[0],mixer=new T.AnimationMixer(root);mixer.clipAction(clip).play();
 const p=name=>skeleton.bones.find(b=>b.name===name).getWorldPosition(new T.Vector3());
@@ -22,4 +22,4 @@ for(let c=0;c<6;c++){
  const base=c%3===1?Math.min(...frames.map(f=>f[c])):frames.reduce((s,f)=>s+f[c],0)/65;
  for(const f of frames)f[c]=+(f[c]-base).toFixed(5);
 }
-writeFileSync(new URL('../app/models/walk-cycle.mjs',import.meta.url),'// CMU 07_01 walking; see MOTION-LICENSE.txt. Normalized foot Z/lift and hand Z.\nexport const walkFrames='+JSON.stringify(frames)+';\n');
+writeFileSync(new URL('../models/walk-cycle.mjs',import.meta.url),'// CMU 07_01 walking; see MOTION-LICENSE.txt. Normalized foot Z/lift and hand Z.\nexport const walkFrames='+JSON.stringify(frames)+';\n');

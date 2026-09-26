@@ -3,7 +3,7 @@ from pathlib import Path
 from mathutils import Vector
 bpy.ops.object.select_all(action='SELECT')
 bpy.ops.object.delete(use_global=False)
-bpy.ops.import_scene.gltf(filepath=str(__import__('pathlib').Path(__file__).resolve().parents[1]/'app/models/child-swim.glb'))
+bpy.ops.import_scene.gltf(filepath=str(__import__('pathlib').Path(__file__).resolve().parents[1]/'models/child-swim.glb'))
 seated = '--seated' in sys.argv
 if seated:
     # Reconstruct the actual Three.js skin deformation, retaining GLB materials.

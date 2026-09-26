@@ -72,7 +72,7 @@ for im in bpy.data.images:
         ratio = 1024 / max(im.size)
         im.scale(int(im.size[0]*ratio), int(im.size[1]*ratio))
     if im.source == 'FILE': im.pack()
-out = ROOT / 'app' / 'models'
+out = ROOT / 'models'
 out.mkdir(exist_ok=True)
 bpy.ops.object.select_all(action='DESELECT')
 rig.select_set(True)

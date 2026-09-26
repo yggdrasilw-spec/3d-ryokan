@@ -1,14 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {GLTFLoader} from '../app/vendor/GLTFLoader.js';
-import {Group,Box3,Vector3} from '../app/vendor/three.module.js';
-import {fitModelToMeasurement} from '../app/model-scale.mjs';
-import {fieldItems,animalCredits} from '../app/field-data.mjs';
-import {buildQuestions} from '../app/catalog.mjs';
+import {GLTFLoader} from '../vendor/GLTFLoader.js';
+import {Group,Box3,Vector3} from '../vendor/three.module.js';
+import {fitModelToMeasurement} from '../model-scale.mjs';
+import {fieldItems,animalCredits} from '../field-data.mjs';
+import {buildQuestions} from '../catalog.mjs';
 test('actual animal assets fit their stated measurement, remain proportional and stand on the floor',async()=>{
  for(const id of Object.keys(animalCredits)){
-  const bytes=await readFile(new URL('../app/models/animals/'+id+'.glb',import.meta.url));
+  const bytes=await readFile(new URL('../models/animals/'+id+'.glb',import.meta.url));
   // Keep geometry and materials; omit browser-only texture decoding in Node.
   const length=bytes.readUInt32LE(12),json=JSON.parse(bytes.subarray(20,20+length));
   const removeTextures=o=>{for(const k of Object.keys(o)){if(k.endsWith('Texture'))delete o[k];else if(o[k]&&typeof o[k]==='object')removeTextures(o[k]);}};

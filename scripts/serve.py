@@ -11,7 +11,7 @@ parser.add_argument('--no-browser', action='store_true')
 parser.add_argument('--port', type=int, default=8317)
 args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
-url = f'http://127.0.0.1:{args.port}/app/'
+url = f'http://127.0.0.1:{args.port}/'
 handler = partial(SimpleHTTPRequestHandler, directory=str(root))
 try:
     server = ThreadingHTTPServer(('127.0.0.1', args.port), handler)

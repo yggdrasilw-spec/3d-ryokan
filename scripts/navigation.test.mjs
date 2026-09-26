@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {walkPosition} from '../app/field-navigation.mjs';
+import {walkPosition} from '../field-navigation.mjs';
 const bounds={minX:-10,maxX:10,minZ:-10,maxZ:10};
 test('walking follows heading, respects distance, and clamps field edges',()=>{
  const p=walkPosition({x:0,z:0},Math.PI/2,1.2,bounds);

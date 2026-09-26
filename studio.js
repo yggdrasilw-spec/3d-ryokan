@@ -96,7 +96,7 @@ function status(t){$('status').textContent=t;}
 function updateUI(){
  $('deskPanel').hidden=mode!=='desk';$('bathPanel').hidden=mode!=='bath';$('handView').hidden=mode!=='desk';$('realView').hidden=mode!=='desk';
  $('title').textContent=mode==='desk'?'手に持つと、どのくらい？':'200Lに、からだごと入ってみる。';$('subtitle').textContent=mode==='desk'?'近づいて、持って、ぐっと見てみよう。':'1Lも、おふろも、自分のからだも。同じものさしの世界。';
- document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));document.querySelectorAll('[data-item]').forEach(b=>{b.classList.toggle('active',b.dataset.item===item);b.disabled=!!action;});document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+ document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));document.querySelectorAll('[data-item]').forEach(b=>{b.classList.toggle('active',b.dataset.item===item);b.disabled=false;});document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
  const d=items[item];$('itemLabel').textContent=d.label;$('itemValue').innerHTML=d.value+' <em>'+d.unit+'</em>';$('itemHint').textContent=d.hint;
  $('dimensions').textContent=d.width?`幅 ${(d.width*1000).toFixed(2).replace(/\.?0+$/,'')} × 高さ ${(d.height*1000).toFixed(2).replace(/\.?0+$/,'')} × 奥行 ${(d.depth*1000).toFixed(2).replace(/\.?0+$/,'')} mm`:'従来の教材設定（製品寸法の資料未取得）';
  $('sourceLinks').replaceChildren();
@@ -118,15 +118,16 @@ function updateUI(){
  deskScene.visible=mode==='desk';bathScene.visible=mode==='bath';cubeGroup.visible=showCubes;canvas.setAttribute('aria-label',mode==='desk'?`身長130cmのキャラクター。${items[item].name}を${held?'手に持っています':'机に置いています'}。${view==='real'?'実寸表示':view==='hand'?'手元拡大':'全体表示'}`:`おふろの水${waterL}L。キャラクターは${inBath?'入浴中':'おふろの外'}。${showCubes?'1Lのブロック200個を比較表示':''}`);
 }
 function setView(next){if(next==='real'&&!cal){realPending=true;openCalibration();return;}view=next;realPan.set(0,0,0);manualOrbit=false;if(mode==='desk'&&(next==='hand'||next==='real')&&!held&&!action)startPickup();updateUI();}
-function startPickup(){if(held||action)return;stage.scrollIntoView({behavior:'smooth',block:'center'});action={type:'pickup',start:clock,duration:5.2,from:bodyPosition.clone(),fromRotation:bodyRotation};status('机へ歩いて、手を伸ばしています…');updateUI();}
-function startPut(){if(!held||action)return;view='wide';manualOrbit=false;action={type:'put',start:clock,duration:3.8,objectFrom:objectLocal.clone()};status('ものを机にもどしています…');updateUI();}
+function deskApproach(){return V(graspProfile(items[item],item).large?.27:.10,0,.22);}
+function startPickup(){if(held||action)return;stage.scrollIntoView({behavior:'smooth',block:'center'});action={type:'pickup',start:clock,duration:5.2,deskPosition:deskApproach(),from:bodyPosition.clone(),fromRotation:bodyRotation};status('机へ歩いて、手を伸ばしています…');updateUI();}
+function startPut(){if(!held||action)return;view='wide';manualOrbit=false;action={type:'put',start:clock,duration:3.8,deskPosition:deskApproach(),objectFrom:objectLocal.clone()};status('ものを机にもどしています…');updateUI();}
 function switchMode(next){mode=next;action=null;held=false;sit=0;inBath=false;view='wide';manualOrbit=false;realPan.set(0,0,0);bodyPosition.copy(next==='desk'?homeDesk:bathHome);bodyRotation=0;updateUI();status(next==='desk'?'ものを選んで、手に持ってみよう。':`おふろの水はいま${waterL}L。中に入って身体とくらべよう。`);}
 function bathAction(){if(action)return;stage.scrollIntoView({behavior:'smooth',block:'center'});view='wide';manualOrbit=false;action={type:inBath?'exit':'enter',start:clock,duration:7.2};status(inBath?'おふろから出ています…':'ふちをまたいで、おふろに入っています…');updateUI();}
 function animateActions(){
  kid=mode==='bath'?bathKid:deskKid;deskKid.root.visible=mode==='desk';bathKid.root.visible=mode==='bath';
  let bathPose=null,torsoLean=0,reachArc=0,walkDistance=0,walkWeight=0;const gait=(p,distance)=>{walkDistance=p*distance;walkWeight=smooth(Math.min(p,1-p)/.16);};const t=action?clamp((clock-action.start)/action.duration,0,1):0;
  const d=items[item],{large}=graspProfile(d,item);
- atDesk.x=large?.27:.10;
+ atDesk.copy(action?.deskPosition||deskApproach());
  const contact=V(atDesk.x-tableItem.x,.701,atDesk.z-tableItem.z),present=V(large?0:-.09,.81,.27);
  gripAmount=held?1:0;
  if(action?.type==='pickup'){
@@ -216,7 +217,7 @@ $('cubes').onclick=()=>{showCubes=!showCubes;view='wide';manualOrbit=false;updat
 $('drain').onclick=()=>{waterL=0;updateUI();status('水を抜いています。');};$('fill').onclick=()=>{waterL=200;pourUntil=clock+2;updateUI();status('200Lまで水を入れています。');};
 for(const b of document.querySelectorAll('[data-add]'))b.onclick=()=>{const add=Math.min(Number(b.dataset.add),200-waterL);waterL+=add;pourUntil=clock+1.2;updateUI();status(`${add}L入れたよ。いま${waterL}L。${waterL===200?'200Lになった！':''}`);};
 for(const b of document.querySelectorAll('[data-item]'))b.onclick=()=>{
- if(action)return;const previous=items[item];item=b.dataset.item;
+ const previous=items[item];item=b.dataset.item;
  if(view==='real'&&cal){const cap=h/(cal.ppm*1000)*.2;realPan.y+=Math.min(previous.height/2,cap)-Math.min(items[item].height/2,cap);}
  if(!manualOrbit&&view!=='real'){const o=camera.position.clone().sub(camTarget);orbitRadius=o.length();orbitYaw=Math.atan2(o.x,o.z);orbitPitch=Math.asin(o.y/orbitRadius);camGoal.copy(camTarget);manualOrbit=true;}
  updateUI();status(`${items[item].name}に切り替えたよ。位置と視点はそのまま。`);

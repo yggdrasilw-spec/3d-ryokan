@@ -1,6 +1,6 @@
 import {readFileSync} from 'node:fs';
-import {BVHLoader} from '../app/vendor/BVHLoader.js';
-import * as T from '../app/vendor/three.module.js';
+import {BVHLoader} from '../vendor/BVHLoader.js';
+import * as T from '../vendor/three.module.js';
 for(const name of process.argv.slice(2)){
  const {skeleton,clip}=new BVHLoader().parse(readFileSync(new URL('./assets/'+name+'.bvh',import.meta.url),'utf8'));
  const root=skeleton.bones[0],mixer=new T.AnimationMixer(root);mixer.clipAction(clip).setLoop(T.LoopOnce,1).play();

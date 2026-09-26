@@ -1,15 +1,15 @@
 import {writeFile} from 'node:fs/promises';
 
 import {readFile} from 'node:fs/promises';
-import * as T from '../app/vendor/three.module.js';
-import {GLTFLoader} from '../app/vendor/GLTFLoader.js';
-import {createCharacter,solveLimb} from '../app/character-rig.mjs';
-import {graspProfile,graspPose} from '../app/grasp.mjs';
-import {items} from '../app/units.mjs';
+import * as T from '../vendor/three.module.js';
+import {GLTFLoader} from '../vendor/GLTFLoader.js';
+import {createCharacter,solveLimb} from '../character-rig.mjs';
+import {graspProfile,graspPose} from '../grasp.mjs';
+import {items} from '../units.mjs';
 const v=(...a)=>new T.Vector3(...a);
 async function loadRig(model='child-makehuman.glb'){
  // Load the actual exported mesh and skin weights in Node, omitting only browser textures.
- const b=await readFile(new URL('../app/models/'+model,import.meta.url));
+ const b=await readFile(new URL('../models/'+model,import.meta.url));
  const len=b.readUInt32LE(12),json=JSON.parse(b.subarray(20,20+len).toString());
  for(const mat of json.materials||[]) {delete mat.normalTexture;delete mat.occlusionTexture;delete mat.emissiveTexture;if(mat.pbrMetallicRoughness){delete mat.pbrMetallicRoughness.baseColorTexture;delete mat.pbrMetallicRoughness.metallicRoughnessTexture;}}
  delete json.images;delete json.textures;
