@@ -18,8 +18,8 @@ export const fieldItems={
   whale:{name:'シロナガスクジラの長さ',value:'頭から尾まで30m',measure:30,axis:'x',note:'大きな個体の長さの例。無料のクジラ模型を使用し、シロナガスクジラ固有の形態ではありません。陸上に置くのは長さを比べるための表示です。',sources:[ref('NOAA Fisheries：Blue Whale','https://www.fisheries.noaa.gov/species/blue-whale')]}
  },
  micro:{
-  nail:{name:'爪の横幅と1cm',value:'1cm ＝ 10mm',size:[.010,.018,.004],note:'小学2年生の爪の横幅くらい、という目安。指・人によって違います。この爪の模型は横幅を1cmに設定しています。自分の爪も定規で測ってみよう。',sources:[]},
-  graphite:{name:'少し書いた芯の先と1mm',value:'芯の先の直径を1mmにした例',size:[.007,.035,.007],note:'限界までとがらせた直後ではなく、少し字を書いてちびた後の芯の先くらい。削り方・筆圧で変わるため、いつも1mmという意味ではありません。',sources:[]}
+  nail:{name:'男の子の指で1cm',value:'1cm ＝ 10mm',size:[.010,.018,.004],note:'男の子の指先を拡大したよ。爪のあたりの横幅が、だいたい1cmの目安。個人差があるし、どの指かでも違うよ。横のものさしと比べて、自分の指も測ってみよう。',sources:[]},
+  graphite:{name:'少し書いた芯の先と1mm',value:'芯の先の直径を1mmにした例',size:[.007,.035,.007],note:'男の子に鉛筆を持ってもらったよ。少し字を書いた芯の先の直径が、だいたい1mmの目安。この鉛筆の模型は直径1mm。削り方や筆圧で変わるから、いつも1mmではないよ。ものさしの小さい1目盛りと比べよう。',sources:[ref('鉛筆の持ち方（トンボ鉛筆）','https://tombow-ippo.jp/howto/'),ref('正しい持ち方（日本筆記具工業会）','https://www.jwima.org/pencil/07mochikata/07mochikata.html')]}
  }
 };
 export const animalCredits={elephant:'a27MA0rXyyj',giraffe:'80w8kwQU0QH',crocodile:'2an6E2WjW3z',whale:'7-TgeTuwbzw'};

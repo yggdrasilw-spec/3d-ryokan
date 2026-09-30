@@ -2,6 +2,7 @@ import * as T from './vendor/three.module.js';
 import {GLTFLoader} from './vendor/GLTFLoader.js';
 import {createCharacter} from './character-rig.mjs?v=20260925-4';
 import {fitModelToMeasurement} from './model-scale.mjs';
+import {writingGrip} from './writing-grip.mjs?v=20260930-3';
 import {walkPosition} from './field-navigation.mjs';
 import {fieldItems,animalCredits} from './field-data.mjs';
 const $=id=>document.getElementById(id),v=(x=0,y=0,z=0)=>new T.Vector3(x,y,z),canvas=$('world');
@@ -22,8 +23,8 @@ function label(parent,text,position,width=.8,color='#365c51'){
 function line(parent,a,b,color='#c46743'){
  const g=new T.BufferGeometry().setFromPoints([a,b]),m=new T.Line(g,new T.LineBasicMaterial({color,depthTest:false}));m.renderOrder=8;parent.add(m);
 }
-function dimension(parent,a,b,text,labelSize=1){
- line(parent,a,b);const dir=b.clone().sub(a).normalize(),tick=Math.abs(dir.y)>.5?v(.06*labelSize,0,0):v(0,.06*labelSize,0);
+function dimension(parent,a,b,text,labelSize=1,tickSize=.06*labelSize){
+ line(parent,a,b);const dir=b.clone().sub(a).normalize(),tick=Math.abs(dir.y)>.5?v(tickSize,0,0):v(0,tickSize,0);
  for(const p of [a,b])line(parent,p.clone().sub(tick),p.clone().add(tick));
  return label(parent,text,a.clone().lerp(b,.5).add(v(0,.13*labelSize,0)),labelSize);
 }
@@ -59,18 +60,40 @@ const pool=group(outdoor,12.5,0,0);box(pool,25,1.2,12.5,0,-.6,0,'#75b7c5');for(c
 const track=group(outdoor,25,0,18);box(track,56,.012,4.1,0,.005,0,'#be9577');for(let lane=0;lane<=3;lane++)box(track,50,.004,.04,0,.014,-1.8+lane*1.2,'#fff6df');for(let x=-25;x<=25;x+=5){box(track,.05,.008,3.6,x,.018,0,'#fff6df');label(track,`${x+25}m`,v(x,.15,2.25),1.3);}register('outdoor','track',track,v(25,.3,18),58);placements.outdoor.track.set(0,0,20.6);dimension(measures.outdoor.track,v(0,.25,21.6),v(50,.25,21.6),'50m ＝ 25m × 2',7);
 const school=group(outdoor,15,0,-15);box(school,36,10.5,9,0,5.25,0,'#e7dcc4');for(let floor=0;floor<3;floor++){box(school,36,.13,.15,0,floor*3.5,4.56,'#afa88f');for(let x=-16;x<=16;x+=2.6)box(school,1.7,1.55,.03,x,1.8+floor*3.5,4.52,'#8daeb4');}register('outdoor','school',school,v(15,4,-15),52);placements.outdoor.school.set(-2,0,-9.8);dimension(measures.outdoor.school,v(-3,.2,-9.4),v(33,.2,-9.4),'36m',6);dimension(measures.outdoor.school,v(33.6,0,-10.5),v(33.6,10.5,-10.5),'10.5m',4);
 for(const id of Object.keys(animalCredits)){const g=group(outdoor,10,0,32);register('outdoor',id,g,v(10,1,32),12);placements.outdoor[id].set(5,0,36);g.visible=false;}
-// Enlarged, dimensionally specified teaching examples. Their forms are schematic.
-const micro=groups.micro;box(micro,.09,.001,.065,0,-.004,0,'#eee5cb');
-const nail=group(micro,-.018,0,0);ellipsoid(nail,[.007,.003,.013],0,0,0,'#dda984');const nailSurface=box(nail,.010,.0005,.008,0,.003,.005,'#f2d9bd');register('micro','nail',nail,v(-.018,0,0),.065);dimension(measures.micro.nail,v(-.023,.005,.012),v(-.013,.005,.012),'1cm ＝ 10mm',.026).position.set(-.023,.004,-.016);
-const pencil=group(micro,.018,0,0);const body=new T.Mesh(new T.CylinderGeometry(.0035,.0035,.021,6),material('#d6a951'));body.rotation.x=Math.PI/2;body.position.z=-.008;pencil.add(body);
-const wood=new T.Mesh(new T.CylinderGeometry(.0008,.0035,.011,16),material('#c69f74'));wood.rotation.x=Math.PI/2;wood.position.z=.008;pencil.add(wood);
-const core=new T.Mesh(new T.CylinderGeometry(.0005,.0008,.003,20),material('#383e3b'));core.rotation.x=Math.PI/2;core.position.z=.015;pencil.add(core);
-register('micro','graphite',pencil,v(.018,0,.015),.043);dimension(measures.micro.graphite,v(.0175,.001,.018),v(.0185,.001,.018),'直径 1mm',.018).position.set(.031,.003,.004);
-const ruler=group(micro,0,0,.025);box(ruler,.060,.0006,.008,0,0,0,'#d7be86');for(let mm=-30;mm<=30;mm++){const len=mm%10===0?.006:mm%5===0?.004:.0025;box(ruler,.00010,.00005,len,mm/1000,.00033,-.004+len/2,'#4b624b');if(mm%10===0)label(ruler,String((mm+30)/10),v(mm/1000,.001,.002),.005);}label(micro,'1つの小さい目盛りが1mm',v(0,.002,.035),.040);
+// The same boy is used at every scale; only the camera moves closer.
+const micro=groups.micro;
+const nail=group(micro);register('micro','nail',nail,v(),.13);
+dimension(measures.micro.nail,v(-.005,.006,0),v(.005,.006,0),'ここが だいたい1cm',.035).position.set(0,.012,-.019);
+const pencil=group(micro);
+// Full-length pencil with a worn, flat graphite end, exactly 1mm across.
+function pencilPart(top,bottom,length,z,color,sides=20){const mesh=new T.Mesh(new T.CylinderGeometry(top,bottom,length,sides),material(color));mesh.rotation.x=Math.PI/2;mesh.position.z=z;pencil.add(mesh);}
+pencilPart(.0035,.0035,.166,-.097,'#d6a951',6);
+pencilPart(.0008,.0035,.011,-.0085,'#c69f74');
+pencilPart(.0005,.0008,.003,-.0015,'#383e3b');
+register('micro','graphite',pencil,v(),.10);
+dimension(measures.micro.graphite,v(-.0005,0,0),v(.0005,0,0),'芯の先の直径 約1mm',.024,.00035).position.set(.011,.009,.009);
+const ruler=group(micro,0,0,.025);box(ruler,.060,.0006,.008,0,0,0,'#d7be86');for(let mm=-30;mm<=30;mm++){const len=mm%10===0?.006:mm%5===0?.004:.0025;box(ruler,.00010,.00005,len,mm/1000,.00033,-.004+len/2,'#4b624b');if(mm%10===0)label(ruler,String((mm+30)/10),v(mm/1000,.001,.002),.005);}const rulerCaption=label(ruler,'1つの小さい目盛りが1mm',v(0,.002,.011),.040);
 obstacles.classroom.push({minX:2,maxX:3.3,minZ:3.725,maxZ:4.175});
 let kid;
 try{kid=await createCharacter(scene,null,'child-makehuman.glb?v=20260924-1');}catch(e){$('loading').textContent='人物モデルを読み込めません。再読み込みしてください。';throw e;}
 const idle={right:v(-.19,.70,.06),left:v(.19,.70,.06)};kid.pose(idle);
+let microGrip=null,microAxis=null;
+function poseMicro(){
+ kid.root.position.set(0,0,0);kid.root.rotation.set(0,0,0);
+ const writing=selected==='graphite';let point;
+ if(writing){
+  const pose=writingGrip(kid);point=pose.tip;microGrip=pose.grip;microAxis=pose.axis;
+  pencil.quaternion.setFromUnitVectors(v(0,0,1),pose.axis);
+ }else{
+  kid.pose({right:v(-.20,.96,.29),left:idle.left,palms:{r:{long:v(0,0,1),normal:v(0,-1,0)}}});
+  microAxis=null;const joint=kid.bones.index_03_r.getWorldPosition(v()),previous=kid.bones.index_02_r.getWorldPosition(v());
+  point=joint.clone().addScaledVector(joint.clone().sub(previous).normalize(),.016);microGrip=point.clone().add(v(0,0,-.05));
+ }
+ micro.position.copy(point);pencil.visible=writing;ruler.rotation.x=writing?.9:0;ruler.position.set(0,writing?-.013:0,.025);rulerCaption.position.z=.011;rulerCaption.visible=!writing;
+ for(const id of ['nail','graphite'])centers.micro[id].copy(point);
+ // The 1mm line crosses the actual flat end, in the pencil's local frame.
+ measures.micro.graphite.quaternion.copy(pencil.quaternion);
+}
 const heightMarker=group(scene);dimension(heightMarker,v(-.23,0,0),v(-.23,1.3,0),'130cm',.7);
 const animalStatus={};
 async function loadAnimal(id){
@@ -85,33 +108,34 @@ async function loadAnimal(id){
  }catch(e){animalStatus[id]='error';if(field==='outdoor'&&selected===id){$('fieldStatus').textContent='動物モデルの読み込みに失敗しました。もう一度選ぶと再試行します。';$('focus').disabled=false;}console.error(e);}
 }
 function sourceLink(parent,text,url){const a=document.createElement('a');a.textContent=text;a.href=url;a.target='_blank';a.rel='noopener';parent.append(a);}
-function selectItem(id){
- selected=id;const d=fieldItems[field][id];$('fieldName').textContent=d.name;$('fieldValue').textContent=d.value;$('fieldNote').textContent=d.note;$('fieldSources').replaceChildren();d.sources.forEach(s=>sourceLink($('fieldSources'),s.title,s.url));
+function selectItem(id,refocus=true){
+ selected=id;if(field==='micro')poseMicro();const d=fieldItems[field][id];$('fieldName').textContent=d.name;$('fieldValue').textContent=d.value;$('fieldNote').textContent=d.note;$('fieldSources').replaceChildren();d.sources.forEach(s=>sourceLink($('fieldSources'),s.title,s.url));
  $('fieldAnnotation').textContent=d.name+' · '+d.value;
  for(const b of document.querySelectorAll('[data-choice]'))b.classList.toggle('active',b.dataset.choice===id);
  for(const [f,list] of Object.entries(measures))for(const [key,g] of Object.entries(list))g.visible=f===field&&key===selected&&showMeasure;
  for(const id of Object.keys(animalCredits))objects.outdoor[id].visible=field==='outdoor'&&selected===id;
+ if(field==='micro'&&refocus)focus();
  $('focus').disabled=field==='outdoor'&&id in animalCredits&&!animalModels[id];
  if(field==='outdoor'&&id in animalCredits){sourceLink($('fieldSources'),'模型：Poly by Google / CC BY 3.0',`https://poly.pizza/m/${animalCredits[id]}`);loadAnimal(id);}else if(!d.sources.length)$('fieldSources').textContent='上の説明に記載した比較用の設定値です。';
 }
 function movePerson(){kid.root.position.copy(placements[field][selected]);const direction=centers[field][selected].clone().sub(kid.root.position);kid.root.rotation.y=Math.atan2(direction.x,direction.z);if(viewMode!=='overview')yaw=kid.root.rotation.y-Math.PI;walkOrigin=kid.root.position.clone();walkDistance=0;kid.pose(idle);updateWalkReading();}
-function focus(){if($('focus').disabled)return;viewMode="overview";eyeMode=false;syncView();target.copy(centers[field][selected]);radius=radii[field][selected];yaw=field==='micro'?.05:.5;pitch=field==='micro'?1.25:.38;}
-function overview(){viewMode="overview";eyeMode=false;syncView();target.copy(field==='classroom'?v(0,1,0):field==='outdoor'?v(20,1,8):v(0,0,.006));radius=field==='classroom'?16:field==='outdoor'?88:.105;yaw=.65;pitch=field==='micro'?1.2:.62;}
-function updateWalkReading(){$('walkReading').textContent=field==='micro'?'拡大図です。爪と芯と定規は同じ縮尺。':`基準の位置から ${(kid.root.position.distanceTo(walkOrigin)).toFixed(1)}m。人物の身長は130cm。`;}
+function focus(){if($('focus').disabled)return;viewMode="overview";eyeMode=false;syncView();target.copy(centers[field][selected]);if(field==='micro')target.z+=.012;radius=radii[field][selected];yaw=field==='micro'?.05:.5;pitch=field==='micro'?(selected==='graphite'?.40:1.25):.38;}
+function overview(){viewMode="overview";eyeMode=false;syncView();target.copy(field==='classroom'?v(0,1,0):field==='outdoor'?v(20,1,8):v(0,.78,.12));radius=field==='classroom'?16:field==='outdoor'?88:2.4;yaw=.65;pitch=field==='micro'?.30:.62;}
+function updateWalkReading(){$('walkReading').textContent=field==='micro'?'男の子の指・鉛筆・ものさしは同じ縮尺です。全体を見ると、どこを拡大したか確かめられます。':`基準の位置から ${(kid.root.position.distanceTo(walkOrigin)).toFixed(1)}m。人物の身長は130cm。`;}
 function switchField(next){
  stopWalking();stepAction=null;field=next;for(const [f,g] of Object.entries(groups))g.visible=f===field;
- const tiny=field==='micro';kid.root.visible=heightMarker.visible=!tiny;for(const id of ['personBadge','eyeView','thirdView','movePerson','walkControls','navigationHelp','driveControls'])$(id).hidden=tiny;
+ const tiny=field==='micro';$('handView').hidden=!tiny;kid.root.visible=true;heightMarker.visible=!tiny;for(const id of ['personBadge','eyeView','thirdView','movePerson','walkControls','navigationHelp','driveControls'])$(id).hidden=tiny;
  $('fieldTitle').textContent={classroom:'教室を、からだで測ろう。',outdoor:'校庭には、どのくらい入る？',micro:'1cm・1mmを思い浮かべよう。'}[field];
  $('fieldSubtitle').textContent=tiny?'爪の横幅、少し書いた鉛筆の芯。身近な目安から。':'身長130cmの子と、同じ縮尺でくらべよう。';
  $('selectionTitle').textContent={classroom:'教室のもの',outdoor:'校庭・校舎・動物',micro:'小さな長さの目安'}[field];$('fieldBadge').textContent=tiny?'拡大表示 · 実寸ではありません':'床の1マス＝1m';
  $('fieldTip').textContent={classroom:'児童机から黒板まで、何mぐらい？「子どもの目線」でも見てみよう。',outdoor:'25mプール2つ分が50m。30mのクジラと並ぶと、自分はどのくらい小さい？',micro:'1cmの中には1mmが10個。自分の爪の横幅は何mmかな？'}[field];
  document.querySelectorAll('[data-field]').forEach(b=>b.classList.toggle('active',b.dataset.field===field));$('fieldChoices').replaceChildren();
  for(const [id,d] of Object.entries(fieldItems[field])){const b=document.createElement('button');b.dataset.choice=id;b.textContent=d.name;b.onclick=()=>selectItem(id);$('fieldChoices').append(b);}
- selectItem(Object.keys(fieldItems[field])[0]);if(!tiny)movePerson();updateWalkReading();overview();history.replaceState(null,'','?field='+field);
+ selectItem(Object.keys(fieldItems[field])[0]);if(!tiny)movePerson();updateWalkReading();if(tiny)focus();else overview();history.replaceState(null,'','?field='+field);
 }
 for(const b of document.querySelectorAll('[data-field]'))b.onclick=()=>switchField(b.dataset.field);
 let pointer=null;canvas.onpointerdown=e=>{canvas.focus({preventScroll:true});pointer=[e.clientX,e.clientY];canvas.setPointerCapture(e.pointerId);};canvas.onpointermove=e=>{if(!pointer)return;yaw-=(e.clientX-pointer[0])*.006;pitch=T.MathUtils.clamp(pitch+(e.clientY-pointer[1])*.004,viewMode==="overview"?.05:-1.1,1.3);pointer=[e.clientX,e.clientY];};canvas.onpointerup=canvas.onpointercancel=()=>pointer=null;
-function zoom(f){if(viewMode==="first")setPerspective("third");radius=T.MathUtils.clamp(radius*f,field==='micro'?.008:.5,field==='micro'?.3:160);}
+function zoom(f){if(viewMode==="first")setPerspective("third");radius=T.MathUtils.clamp(radius*f,field==='micro'?.008:.5,field==='micro'?3:160);}
 canvas.addEventListener('wheel',e=>{e.preventDefault();zoom(Math.exp(e.deltaY*.001));},{passive:false});$('zoomIn').onclick=()=>zoom(.8);$('zoomOut').onclick=()=>zoom(1.25);
 let stepAction=null,viewMode='overview',walkDistance=0,walkBlend=0,lastFrame=performance.now();
 const keys=new Set();
@@ -121,7 +145,7 @@ function setPerspective(next){
  if(viewMode==='overview'){yaw=kid.root.rotation.y-Math.PI;pitch=.12;}
  viewMode=next;eyeMode=next==='first';radius=3.6;syncView();canvas.focus({preventScroll:true});
 }
-function stopWalking(){keys.clear();walkBlend=0;if(kid)kid.pose(idle);}
+function stopWalking(){keys.clear();walkBlend=0;if(kid&&field!=='micro')kid.pose(idle);}
 function updateNavigation(dt){
  if(field==='micro')return;
  const turn=(keys.has('ArrowLeft')?1:0)-(keys.has('ArrowRight')?1:0);
@@ -147,8 +171,8 @@ for(const b of document.querySelectorAll('[data-drive]')){
 function walkBy(amount){if(stepAction)return;const from=kid.root.position.clone(),heading=amount>0?Math.PI/2:-Math.PI/2,bounds=field==='classroom'?{minX:-3.28,maxX:3.28,minZ:-4.28,maxZ:4.28}:{minX:-29,maxX:69,minZ:-36,maxZ:46},p=walkPosition(from,heading,Math.abs(amount),bounds,obstacles[field]),to=v(p.x,0,p.z);stepAction={from,to,start:performance.now()};kid.root.rotation.y=heading;}
 function refresh(){const rect=$('stage').getBoundingClientRect();renderer.setSize(rect.width,rect.height,false);camera.aspect=rect.width/rect.height;camera.updateProjectionMatrix();}
 new ResizeObserver(refresh).observe($('stage'));
-$('overview').onclick=overview;$('focus').onclick=()=>{focus();$('stage').scrollIntoView({block:'center',behavior:'smooth'});};$('movePerson').onclick=()=>{stepAction=null;movePerson();$('stage').scrollIntoView({block:'center',behavior:'smooth'});};$('resetField').onclick=()=>{stepAction=null;if(field!=='micro')movePerson();overview();};$('stepBack').onclick=()=>walkBy(-1);$('stepForward').onclick=()=>walkBy(1);
-$('measureToggle').onclick=()=>{showMeasure=!showMeasure;$('measureToggle').setAttribute('aria-pressed',String(showMeasure));$('measureToggle').textContent=showMeasure?'寸法の線を表示中':'寸法の線を非表示';selectItem(selected);};
+$('handView').onclick=()=>{viewMode='overview';eyeMode=false;syncView();target.copy(microGrip);radius=.26;yaw=.70;pitch=.45;};$('overview').onclick=overview;$('focus').onclick=()=>{focus();$('stage').scrollIntoView({block:'center',behavior:'smooth'});};$('movePerson').onclick=()=>{stepAction=null;movePerson();$('stage').scrollIntoView({block:'center',behavior:'smooth'});};$('resetField').onclick=()=>{stepAction=null;if(field!=='micro')movePerson();overview();};$('stepBack').onclick=()=>walkBy(-1);$('stepForward').onclick=()=>walkBy(1);
+$('measureToggle').onclick=()=>{showMeasure=!showMeasure;$('measureToggle').setAttribute('aria-pressed',String(showMeasure));$('measureToggle').textContent=showMeasure?'寸法の線を表示中':'寸法の線を非表示';selectItem(selected,false);};
 $('eyeView').onclick=()=>setPerspective('first');$('thirdView').onclick=()=>setPerspective('third');
 switchField(Object.hasOwn(fieldItems,new URLSearchParams(location.search).get('field'))?new URLSearchParams(location.search).get('field'):'classroom');$('loading').hidden=true;refresh();
 function frame(now){
@@ -157,6 +181,6 @@ function frame(now){
  heightMarker.position.copy(kid.root.position);
  if(viewMode==='third')target.copy(kid.root.position).add(v(0,.95,0));
  if(eyeMode){camera.position.copy(kid.root.position).add(v(0,1.18,0));camera.lookAt(camera.position.clone().add(v(-Math.sin(yaw)*Math.cos(pitch),-Math.sin(pitch),-Math.cos(yaw)*Math.cos(pitch))));}else{desired.set(Math.sin(yaw)*Math.cos(pitch),Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch)).multiplyScalar(radius).add(target);camera.position.copy(desired);camera.lookAt(target);}
- kid.root.visible=heightMarker.visible=field!=='micro'&&!eyeMode;renderer.render(scene,camera);requestAnimationFrame(frame);
+ kid.root.visible=!eyeMode;heightMarker.visible=field!=='micro'&&!eyeMode;renderer.render(scene,camera);requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

@@ -1,3 +1,6 @@
+import {writingContact} from './writing-contact.mjs';
+import {pencilClearance} from './pencil-clearance.mjs';
+import {writingGrip} from '../writing-grip.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
@@ -137,4 +140,39 @@ test('bath sequence keeps both ankle targets reachable and clears the rim',async
   }
  }
  assert.ok(maxError<.025,`${maxError} ${worst}`);
+});
+
+test('writing grip clears the actual skin and keeps all three support fingers close',async()=>{
+ const kid=await loadRig(),lengths=new Map(Object.values(kid.bones).map(b=>[b.name,b.position.length()]));
+ const grip=writingGrip(kid),check=pencilClearance(kid,grip);
+ assert.ok(check.triangles>30000,'check the complete character, including skin and clothes');
+ assert.ok(check.minimum>=.0001,`pencil penetrates skin: ${check.minimum}m`);
+ for(const finger of ['index_r','middle_r','thumb_r'])assert.ok(check.barrelContacts[finger]<.0005,`${finger} does not support the barrel`);
+ const rotations=Object.fromEntries(Object.entries(kid.bones).map(([name,b])=>[name,b.quaternion.toArray()]));
+ kid.pose({right:v(-.19,.7,.06),left:v(.19,.7,.06)});
+ const repeated=writingGrip(kid);
+ assert.ok(repeated.tip.distanceTo(grip.tip)<1e-9);
+ for(const [name,bone] of Object.entries(kid.bones)){
+  assert.ok(Math.abs(bone.position.length()-lengths.get(name))<1e-6,name+' stretched');
+  assert.deepEqual(bone.quaternion.toArray(),rotations[name],name+' pose drift');
+ }
+ assert.ok(Math.abs(grip.tip.distanceTo(grip.grip)-.026)<1e-8);
+ assert.ok(grip.axis.y<0&&grip.axis.z>0);
+ const elevation=Math.asin(-grip.axis.y)*180/Math.PI,front=Math.atan2(grip.axis.x,-grip.axis.y)*180/Math.PI;
+ assert.ok(elevation>=50&&elevation<=60,'writing shaft should incline 50–60 degrees above the paper');
+ assert.ok(front>=15&&front<=25,'shaft leans outward about 20 degrees in the front view');
+ assert.ok(check.barrelJointContacts.index_02_r<.001,'shaft stays along the index second joint');
+ for(const joint of ['index_03_r','middle_03_r','thumb_03_r'])assert.ok(check.barrelJointContacts[joint]<.0005,joint+' must support the barrel');
+});
+
+test('writing uses the upper central index pulp and gentle thumb contact without crossing skin',async()=>{
+ const kid=await loadRig(),pose=writingGrip(kid),contact=writingContact(kid,pose);
+ assert.ok(contact.pulpGap>=0&&contact.pulpGap<.0006,'central pulp, not a side edge, must touch the shaft envelope');
+ assert.ok(contact.pulpUpperDot>.95,'the pulp contact belongs on top of the pencil');
+ assert.ok(contact.pulpFacingDot>.9,'the pulp must face the shaft rather than graze it sideways');
+ assert.equal(contact.crossings,0,'thumb and index skin must not cross');
+ assert.ok(contact.thumbOpening>.010,'thumb must open outward at its base');
+ assert.ok(contact.thumbReturn<-.002,'thumb tip must turn back around the outside of the shaft');
+ assert.ok(Math.abs(contact.indexCenterOffset)<.001,'index fingertip center should align with the shaft in the upper projection');
+ assert.ok(contact.fingerGap>=0&&contact.fingerGap<.0005,'thumb and index should lightly meet');
 });
